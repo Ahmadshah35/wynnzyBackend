@@ -2,17 +2,22 @@ const mongoose = require("mongoose");
 
 const serviceSchema = new mongoose.Schema(
   {
-    userId: {
+     managerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
+    },
+    serviceName: {
+      type: String,
+      required: true
     },
     images: {
       type: [String],
       required: true,
     },
-    selectService: {
-      type: String,
-      enum:["Sitting","Boarding","Training","Drop-Ins"],
+    serviceCategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      re: "Category",
+      // enum:["Sitting","Boarding","Training","Drop-Ins"],
       required: true,
     },
     categoryName:{
@@ -44,28 +49,11 @@ const serviceSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-   
-    // location: {
-    //   type: {
-    //     type: String,
-    //     enum: ["Point"],
-    //     required: true,
-    //   },
-    //   coordinates: {
-    //     type: [Number],
-    //     required: true,
-    //   },
-    //   name: {
-    //     type: String,
-    //     required: true,
-    //   },
-    // },
-    // longitude: {
-    //   type: Number,
-    // },
-    // latitude: {
-    //   type: Number,
-    // },
+    status:{
+      type:String,
+      enum:["Active","InActive"],
+      default: "InActive"
+    }
   },
   { timestamps: true }
 );

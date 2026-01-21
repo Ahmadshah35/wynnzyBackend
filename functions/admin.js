@@ -1,7 +1,7 @@
 const adminModel = require("../models/admin");
 const bcrypt = require("bcrypt");
 
-const signUpAdmin = async (req, session) => {
+const signUpAdmin = async (req) => {
   const { password } = req.body;
   const admin = new adminModel(req.body);
   const salt = await bcrypt.genSalt(10);
@@ -9,7 +9,7 @@ const signUpAdmin = async (req, session) => {
   admin.password = hashPassword;
   const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
   admin.otp = genOtp;
-  const result = await admin.save({ session });
+  const result = await admin.save();
   return result;
 };
 
@@ -30,48 +30,45 @@ const comparePassword = async (password, hashPassword) => {
 };
 
 
-const isVerifiedAdmin = async (email, session) => {
+const isVerifiedAdmin = async (email) => {
   const verify = await adminModel.findOneAndUpdate(
     { email: email },
     {
       $set: { isVerified: true },
     },
-    { new: true, session }
+    { new: true }
   );
   return verify;
 };
 
-const verifyAdminOtp = async (req, session) => {
+const verifyAdminOtp = async (req) => {
   const { Otp, email } = req.body;
-  const verify = await adminModel
-    .findOne({ email: email, otp: Otp })
-    .session(session);
+  const verify = await adminModel.findOne({ email: email, otp: Otp })
   return verify;
 };
 
-const resendAdminOtp = async (email, session) => {
+const resendAdminOtp = async (email) => {
   const admin = await adminModel
     .findOne({ email }, { new: true })
-    .session(session);
   if (!admin) {
     throw new Error("admin not found");
   }
   const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
   admin.otp = genOtp;
 
-  await admin.save({ session });
+  await admin.save();
   return admin;
 };
 
-const passwordAdminOtp = async (email, session) => {
+const passwordAdminOtp = async (email) => {
   const admin = await adminModel.findOne({ email: email });
   const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
   admin.otp = genOtp;
-  const result = await admin.save({ session });
+  const result = await admin.save();
   return result;
 };
 
-const resetAdminPassword = async (email, newPassword, session) => {
+const resetAdminPassword = async (email, newPassword) => {
   const salt = await bcrypt.genSalt(10);
   const hashPassword = await bcrypt.hash(newPassword, salt);
   const resetPassword = await adminModel.findOneAndUpdate(
@@ -79,27 +76,27 @@ const resetAdminPassword = async (email, newPassword, session) => {
     {
       $set: { password: hashPassword },
     },
-    { new: true, session }
+    { new: true }
   );
   return resetPassword;
 };
 
-const verifyAdmin = async (userId, session) => {
+const verifyAdmin = async (userId) => {
   const verify = await adminModel.findOneAndUpdate(
     { _id: userId },
     { $set: { isVerified: true } },
-    { new: true, session }
+    { new: true }
   );
   return verify;
 };
 
-const updateAdminEmail = async (id, email, session) => {
+const updateAdminEmail = async (id, email) => {
   const admin = await adminModel.findByIdAndUpdate(
     id,
     {
       $set: { email: email },
     },
-    { new: true, session }
+    { new: true }
   );
   return admin;
 };

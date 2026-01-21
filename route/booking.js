@@ -1,13 +1,13 @@
 const express = require("express");
-const { createBooking, updateBooking, deleteBooking, getBooking, getAllBooking, bookingStatus } = require("../controller/booking");
-const router=express.Router()
+const bookingController = require("../controller/booking");
+const router = express.Router();
 
+router.post("/user/createBooking", bookingController.createBooking);
+router.post("/user/updateBooking", bookingController.updateBooking);
+router.post("/user/deleteBooking", bookingController.deleteBooking);
+router.get("/user/getBooking", bookingController.getBooking);
+router.post("/user/bookingStatus", bookingController.bookingStatus);
+router.get("/user/bookingsByManagerId", bookingController.bookingsByManagerId);
+router.get("/user/bookingsByUserId", bookingController.getAllBookingByUserId);
 
-router.post("/booking/createBooking",createBooking);
-router.post("/booking/updateBooking", updateBooking);
-router.post("/booking/deleteBooking", deleteBooking);
-router.get("/booking/getBooking", getBooking);
-router.get("/booking/getAllBooking", getAllBooking);
-router.post("/booking/bookingStatus", bookingStatus);
-
-module.exports=router
+module.exports = router;

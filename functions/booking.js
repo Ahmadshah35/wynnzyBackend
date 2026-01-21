@@ -1,16 +1,20 @@
 const bookingModel = require("../models/booking");
 
-const createBooking = async (req, session) => {
+const createBooking = async (req) => {
   const booking = new bookingModel(req.body);
-  const result = await booking.save({ session });
+  const result = await booking.save();
   return result;
 };
 
-const updateBooking = async (id, userData, session) => {
+const updateBooking = async (req) => {
+  const { bookingId } = req.body;
+  const updatedData = req.body;
+  // console.log("Data :", req.body);
+  // return 
   const booking = await bookingModel.findByIdAndUpdate(
-    id,
-    { $set: userData },
-    { new: true, session }
+    {_id: bookingId},
+    { $set: updatedData },
+    { new: true }
   );
   return booking;
 };
@@ -25,32 +29,52 @@ const deleteBooking = async (id) => {
   return booking;
 };
 
-const getBooking = async (id) => {
-  const booking = await bookingModel.findById(id);
+const getBooking = async (req) => {
+  const { bookingId } = req.query;
+  const booking = await bookingModel.findById({_id: bookingId}).populate("serviceId").populate("categoryId").populate("userId","-password").populate("petId");
   return booking;
 };
 
-const getAllBooking = async (userId) => {
-  const booking = await bookingModel.find({ userId: userId });
-  return booking;
-};
-
-const bookingStatus = async (req, session) => {
+const bookingStatus = async (req) => {
   const { id, status } = req.body;
-  //  console.log(req.body)
+ 
   const type = await bookingModel.findByIdAndUpdate(
     { _id: id },
     { $set: { status: status } },
-    { new: true, session }
+    { new: true }
   );
-  // console.log(type);
+ 
   return type;
 };
+
+const getAllBookingByUserId = async (req) => {
+  const { userId, status } = req.query;
+
+  const filter = { userId }
+  if(status){
+    filter.status = status
+  }
+  const booking = await bookingModel.find(filter).populate("serviceId").populate("categoryId");
+  return booking;
+};
+
+const bookingsByManagerId = async (req) => {
+  const { managerId, status } = req.query;
+  const filter = { managerId };
+  
+  if(status){
+    filter.status = status
+  };
+  const bookings = await bookingModel.find(filter).populate("serviceId").populate("userId","-password").populate("petId").populate("categoryId");
+  return bookings
+}; 
+
 module.exports = {
   createBooking,
   updateBooking,
   deleteBooking,
   getBooking,
-  getAllBooking,
   bookingStatus,
+  getAllBookingByUserId,
+  bookingsByManagerId,
 };

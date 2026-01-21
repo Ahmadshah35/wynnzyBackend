@@ -1,403 +1,261 @@
 const func = require("../functions/user");
+const funcOtp = require("../functions/otp");
 const jwt = require("jsonwebtoken");
 const mailer = require("../helper/mailer");
 const mongoose = require("mongoose");
 const userModel = require("../models/user");
 
 const signUp = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validate = await func.validiateEmail(req);
-    // console.log(validate)
     if (validate) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "Email already exists", sucess: "false" });
-    }
-    const user = await func.signUp(req, session);
-    if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "User creation failed", sucess: "false" });
-    }
-    const userData = {
-      email: user.email,
-      Otp: user.otp,
-    };
-    const sendmail = await mailer.sendMail(userData);
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      process.env.JWT_SECRET_TOKEN,
-      { expiresIn: "5d" }
-    );
-
-    const userWithoutPassword = {
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      type: user.type,
-      isVerified: user.isVerified,
-      otp: user.otp,
-    };
-
-    res.status(200).json({
-      message: "Successfully created",
-      sucess: "true",
-      data: userWithoutPassword,
-      token: token,
-    });
-    await session.commitTransaction();
-    session.endSession();
-    return;
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Transaction failed:", error);
-    return res
-      .status(500)
-      .json({
-        message: "Something went wrong",
-        sucess: "false",
-        error: error.message,
+      return res.status(200).json({
+        success: false,
+        message: "Email is Already Taken!",
       });
+    }
+
+    const { type, email, fullName, password } = req.body;
+
+    if (type === "User" || type === "Daycare") {
+      const token = jwt.sign(
+        { email, fullName, password, type },
+        process.env.JWT_SECRET_TOKEN,
+        { expiresIn: "1y" }
+      );
+
+      const createOtp = await funcOtp.generateOtp(email);
+
+      const userData = {
+        email,
+        Otp: createOtp.otp,
+      };
+      let OTP = userData.Otp;
+      const send = await mailer.sendMail(userData);
+
+      return res.status(200).json({
+        success: true,
+        message: "Otp sent Successfully!",
+        data: { email, fullName, type, OTP },
+        accessToken: token,
+      });
+    } else {
+      return res.status(200).json({
+        message: "Invalid type",
+        success: false,
+      });
+    }
+  } catch (error) {
+    console.log("Having Errors:", error);
+    return res.status(403).json({
+      success: false,
+      message: "Having Errors",
+      error: error.message,
+    });
   }
 };
 
 const login = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validate = await func.validiateEmail(req);
     if (!validate) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "eamil not found", sucess: "false" });
+        .status(200)
+        .json({ message: "email not found", success: false });
     }
     const { password } = req.body;
     const user = await func.getUser(req);
     if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(404)
-        .json({ message: "User not found", sucess: "false" });
+      return res.status(200).json({ message: "User not found", success: false });
     }
     const compare = await func.comparePassword(password, user.password);
     if (!compare) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(401)
-        .json({ message: "Invalid password", sucess: "false" });
+        .status(200)
+        .json({ message: "Invalid password", success: false });
     }
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET_TOKEN,
       { expiresIn: "5d" }
     );
-
     const userWithoutPassword = await userModel
       .findById(user._id)
       .select("-password")
       .lean();
-    res
-      .status(200)
-      .json({
-        status: "successful",
-        sucess: "true",
-        data: userWithoutPassword,
-        token: token,
-      });
-    await session.commitTransaction();
-    session.endSession();
-    return;
+      return res.status(200).json({
+      success: true,
+      message: "User Logged in Successfully!",
+      data: userWithoutPassword,
+      token: token,
+    });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Transaction failed:", error);
-    return res
-      .status(500)
-      .json({
-        message: "Something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
-  }
-};
-
-const verifyOtp = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const verifyOtpp = await func.verifyOtp(req, session);
-    // console.log(verifyOtp)
-    if (verifyOtpp) {
-      const email = verifyOtpp.email;
-      const isVerified = await func.isVerified(email, session);
-      // console.log(isVerified)
-      if (isVerified) {
-        verifyOtpp.otp = null;
-        await verifyOtpp.save();
-        const token = jwt.sign(
-          {
-            email: email,
-          },
-          process.env.JWT_SECRET_TOKEN,
-          { expiresIn: "5d" }
-        );
-        const userWithoutPassword = {
-          _id: verifyOtpp._id,
-          fullName: verifyOtpp.fullName,
-          email: verifyOtpp.email,
-          type: verifyOtpp.type,
-          isVerified: verifyOtpp.isVerified,
-          otp: verifyOtpp.otp,
-        };
-        res.status(200).json({
-          message: "sucessfully verified",
-          sucess: "true",
-          data: userWithoutPassword,
-          token: token,
-        });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "user is not verified", sucess: "false" });
-      }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "give valid credentials", sucess: "false" });
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
-  }
-};
-
-const resendOtp = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const validiate = await func.validiateEmail(req);
-    // console.log(validiate)
-    if (validiate) {
-      const email = validiate.email;
-      // console.log(email)
-      const resendOtp = await func.resendOtp(email, session);
-      // console.log(resendOtp)
-      if (resendOtp) {
-        const userData = {
-          email: email,
-          Otp: resendOtp.otp,
-        };
-        const sendMail = await mailer.sendMail(userData);
-        const userWithoutPassword = await userModel
-          .findById(validiate._id)
-          .select("-password")
-          .lean();
-        res
-          .status(200)
-          .json({
-            message: "sucessfully otp send",
-            sucess: "true",
-            data: userWithoutPassword,
-          });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "otp doesn't sent", sucess: "false" });
-      }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(401)
-        .json({ message: "invalid email", sucess: "false" });
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
-  }
-};
-
-const forgetPassword = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  try {
-    const validiate = await func.validiateEmail(req);
-    if (validiate) {
-      const email = validiate.email;
-      const passwordOtp = await func.passwordOtp(email, session);
-      if (passwordOtp) {
-        const userData = {
-          email: email,
-          Otp: passwordOtp.otp,
-        };
-        const sendMail = await mailer.sendMail(userData);
-        const userWithoutPassword = await userModel
-          .findById(validiate._id)
-          .select("-password")
-          .lean();
-        res
-          .status(200)
-          .json({
-            message: "sucessfully otp send",
-            sucess: "true",
-            data: userWithoutPassword,
-          });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "otp doesn't sent", sucess: "false" });
-      }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(401)
-        .json({ message: "invalid email", sucess: "false" });
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
+  console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
 const resetPassword = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validiate = await func.validiateEmail(req);
 
-    if (validiate) {
-      const email = validiate.email;
-      const { password } = req.body;
-      const resetPassword = await func.resetPassword(
-        email,
-        password,
-        session
-      );
-      if (resetPassword) {
-        const userWithoutPassword = await userModel
-          .findById(resetPassword._id)
-          .select("-password")
-          .lean();
-        res
-          .status(200)
-          .json({
-            message: "updated sucessfully ",
-            sucess: "true",
-            data: userWithoutPassword,
-          });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "unsucessfully not updated", sucess: "false" });
-      }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "kindly give valid email", sucess: "false" });
-    }
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
+    if (!validiate) {
+      return res.status(200).json({
+        success: false,
+        message: "InValid email",
       });
+    }
+    const { email, newPassword } = req.body;
+
+    const resetPassword = await func.resetPassword(email, newPassword);
+    if (!resetPassword) {
+      return res.status(200).json({
+        success: false,
+        message: "unsuccessfully not updated",
+      });
+    }
+
+    const userWithoutPassword = await userModel
+      .findById(resetPassword._id)
+      .select("-password")
+      .lean();
+
+    return res.status(200).json({
+      message: "updated successfully",
+      success: true,
+      data: userWithoutPassword,
+    });
+  } catch (error) {
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
-// const type = async (req, res) => {
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-//   try {
-//     const type = await func.type(req);
-//     if (type) {
-//       const userWithoutPassword = await userModel
-//         .findById(type._id)
-//         .select("-password")
-//         .lean();
-//       await session.commitTransaction();
-//       session.endSession();
-//       return res
-//         .status(200)
-//         .json({ status: "sucess", Data: userWithoutPassword });
-//     } else {
-//       await session.abortTransaction();
-//       session.endSession();
-//       return res.status(400).json({ message: "having error in type " });
-//     }
-//   } catch (error) {
-//     await session.abortTransaction();
-//     session.endSession();
-//     return res.status(400).json({ message: "something went wrong " });
-//   }
-// };
+const deleteUser = async (req, res) => {
+  try {
+    const user = await func.deleteUser(req);
+    return res.status(200).json({
+      success: true,
+      message: "User Is Deleted!"
+    })
+  } catch (error) {
+    console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const updateUser = async (req, res) => {
+  try {
+      const user = await func.updateUser(req);
+      return res.status(200).json({
+        success: true,
+        message: "User updated Successfully!",
+        data: user
+      });
+  } catch (error) {
+      console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const userProfile = async (req, res) => {
+   try {
+      const user = await func.userProfile(req);
+      return res.status(200).json({
+        success: true,
+        message: "User Details By Id!",
+        data: user
+      });
+  } catch (error) {
+      console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const forgetPassword = async (req, res) => {
+  try {
+      const validate = await func.validiateEmail(req);
+      if(!validate){
+        return res.status(200).json({
+          success: false,
+          msg: "No Account Found!"
+        });
+      } else {
+        const { email } = req.body;
+        const createOtp = await funcOtp.generateOtp(email);
+        const userData = {
+          userId: validate._id,
+          email,
+          OTP: createOtp.otp,
+        };
+        const send = await mailer.sendMail(userData);
+        return res.status(200).json({
+          success: true,
+          msg: "OTP Sent Successfully!",
+          data: userData
+        })
+      }
+  } catch (error) {
+      console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });    
+  }
+};
+
+const verifyPasswordOTP = async (req, res) => {
+  try {
+    const verify = await funcOtp.verifyOtp(req);
+    if(!verify){
+      return res.status(200).json({
+        success: false,
+        msg: "Invalid OTP"
+      })
+    } else {
+      return res.status(200).json({
+        success: true,
+        msg: "OTP Verified Successfully!"
+      })      
+    }
+  } catch (error) {
+      console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });    
+  }
+};
 
 module.exports = {
   signUp,
   login,
-  verifyOtp,
-  resendOtp,
-  forgetPassword,
   resetPassword,
-  // type,
+  deleteUser,
+  updateUser,
+  userProfile,
+  forgetPassword,
+  verifyPasswordOTP
 };

@@ -3,72 +3,55 @@ const func = require("../functions/booking");
 const userModel = require("../models/user");
 
 const createBooking = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const { userId } = req.body;
     const user = await userModel.findById(userId);
     if (user.type == "User") {
-      const booking = await func.createBooking(req, session);
+      const booking = await func.createBooking(req);
       if (booking) {
-        res
+        return res
           .status(200)
-          .json({ status: "sucess", sucess: "true", data: booking });
-        await session.commitTransaction();
-        session.endSession();
-        return;
+          .json({ 
+            success: true,
+            message: "Booking Created!", 
+            data: booking });
+        
       } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res.status(400).json({
-          status: "failed",
+        return res.status(200).json({
+          success: false,
           message: "data isn't saved in Database",
-          sucess: "false",
         });
       }
     } else {
       return res
         .status(403)
-        .json({ error: "Unauthorized user type", sucess: "false" });
+        .json({ message: "Unauthorized user type", success: false });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Transaction failed:", error);
+    console.log("Having Errors :", error)
     return res.status(500).json({
+      success: false,
       message: "Something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
 };
 
 const updateBooking = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const { id } = req.body;
-    const userData = req.body;
-    const booking = await func.updateBooking(id, userData, session);
+    const booking = await func.updateBooking(req);
     if (booking) {
-      res.status(200).json({ status: "sucess", sucess: "true", data: booking });
-      await session.commitTransaction();
-      session.endSession();
-      return;
+      return res.status(200).json({ success: true, message: "Booking Details Updated!", data: booking });
     } else {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ status: "failed", message: "update failed", sucess: "false" });
+        .status(200)
+        .json({ message: "update failed", success: false });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    console.log("Having Errors : ", error);
     return res.status(400).json({
-      status: "failed",
+      success: false,
       message: "something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
@@ -80,20 +63,19 @@ const deleteBooking = async (req, res) => {
     const booking = await func.deleteBooking(id);
     if (booking) {
       return res.status(200).json({
-        message: "booking deleted sucessfully",
-        sucess: "true",
-        data: booking,
+        success: true,
+        message: "booking deleted successfully",
       });
     } else {
       return res
-        .status(400)
-        .json({ status: "failed", message: "delete failed", sucess: "false" });
+        .status(200)
+        .json({ message: "delete failed", success: false });
     }
   } catch (error) {
+    console.log("Having Errors: ", error)
     return res.status(400).json({
-      status: "failed",
+      success: false,
       message: "something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
@@ -101,74 +83,93 @@ const deleteBooking = async (req, res) => {
 
 const getBooking = async (req, res) => {
   try {
-    const { id } = req.body;
-    const booking = await func.getBooking({ _id: id });
-    if (booking.length == 0) {
-      return res
-        .status(200)
-        .json({ status: "booking not found", sucess: "false" });
+    const booking = await func.getBooking(req);
+    if (!booking) {
+      return res.status(200).json({ 
+        success: false, 
+          message: "booking not found", 
+        });
     } else {
       return res
         .status(200)
-        .json({ status: "sucessful", sucess: "true", data: booking });
+        .json({ success: true, message: "Booking Details By Id", data: booking });
     }
   } catch (error) {
+    console.log("Having Errors: ", error)
     return res.status(400).json({
-      status: "failed",
+      success: false,
       message: "something went wrong",
-      sucess: "false",
-      error: error.message,
-    });
-  }
-};
-
-const getAllBooking = async (req, res) => {
-  try {
-    const { userId } = req.query;
-    const booking = await func.getAllBooking(userId);
-    if (booking.length == 0) {
-      return res
-        .status(200)
-        .json({ status: " booking not found", sucess: "false" });
-    } else {
-      return res
-        .status(200)
-        .json({ status: "sucessful", sucess: "true", data: booking });
-    }
-  } catch (error) {
-    return res.status(400).json({
-      status: "failed",
-      message: "something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
 };
 
 const bookingStatus = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const status = await func.bookingStatus(req);
     // console.log(status)
     if (status) {
-      res.status(200).json({ status: "sucess", Data: status, sucess: true });
-      await session.commitTransaction();
-      session.endSession();
-      return;
+      return res.status(200).json({ Data: status, message: "Booking Status Updated!", success: true });
     } else {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "having error in status ", sucess: false });
+        .status(200)
+        .json({ message: "having error in status ", success: false });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(400)
-      .json({ message: "something went wrong ", sucess: false });
+    console.log("Having Errors: ", error)
+    return res.status(400).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const getAllBookingByUserId = async (req, res) => {
+  try {
+    const booking = await func.getAllBookingByUserId(req);
+    if (booking.length == 0) {
+      return res.status(200).json({ 
+          success: false,
+          message: "booking not found", 
+         });
+    } else {
+      return res
+        .status(200)
+        .json({success: true, messgae: "Bookings By UserId",  data: booking });
+    }
+  } catch (error) {
+    console.log("Having Errors: ", error)
+    return res.status(400).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
+const bookingsByManagerId = async (req, res) => {
+  try {
+    const bookings = await func.bookingsByManagerId(req);
+    if( bookings.length === 0){
+      return res.status(200).json({
+        success: true,
+        message: "No Booking Found!"
+      })
+    } else {
+       return res.status(200).json({
+        success: true,
+        message: "Bookings By ManagerId!",
+        data: bookings
+       })
+    }
+  } catch (error) {
+    console.log("Having Errors!", error);
+    return res.status(400).json({
+      success: false,
+      message: "Having Errors!",
+      error: error.message
+    })
   }
 };
 
@@ -177,6 +178,7 @@ module.exports = {
   updateBooking,
   deleteBooking,
   getBooking,
-  getAllBooking,
   bookingStatus,
+  getAllBookingByUserId,
+  bookingsByManagerId,
 };

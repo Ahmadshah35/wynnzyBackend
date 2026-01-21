@@ -7,12 +7,27 @@ const bookingSchema = new mongoose.Schema(
       ref: "user",
       required: true,
     },
-    serviceName: {
-      type: [String],
-      enum:["Sitting","Boarding","Training","Drop-Ins"],
-      required: true,
+    petId:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "userpet",
+      requried: true
     },
-    price: {
+    managerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "bprofile",
+      requried: true
+    },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true
+    },
+    serviceId: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "service",
+      required: true,
+    }],
+    total: {
       type: Number,
       reequired: true,
     },

@@ -3,65 +3,58 @@ const func = require("../functions/review");
 const reviewModel = require("../models/review");
 
 const createReview = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const review = await func.createReview(req, session);
+    const review = await func.createReview(req);
 
     if (review) {
-      res.status(200).json({ status: "sucess", sucess: "true", data: review });
-      await session.commitTransaction();
-      session.endSession();
-      return;
+      const { managerId } = req.body;
+      const updateRating = await func.avgRating(managerId);
+      return res.status(200).json({ 
+        success: true, 
+        message: "Review Added Successfully!", 
+        data: review,updateRating 
+      });
+      
     } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({
-        status: "failed",
+      return res.status(200).json({
+        success: false,
         message: "data isn't saved in Database",
-        sucess: "false",
       });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Transaction failed:", error);
-    return res.status(500).json({
-      message: "Something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
 const updateReview = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const { id } = req.body;
     const userData = req.body;
-    const review = await func.updateReview(id, userData, session);
+    const review = await func.updateReview(id, userData);
     // console.log(profile)
     if (review) {
-      res.status(200).json({ status: "sucess", sucess: "true", data: review });
-      await session.commitTransaction();
-      session.endSession();
-      return;
+      return res.status(200).json({ 
+        success: true, 
+        message: "Review updated Successfully!", 
+        data: review, 
+      });
     } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ status: "failed", message: "update failed", sucess: "false" });
+      return res.status(200).json({ 
+        success: false, 
+        message: "update failed", 
+      }); 
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(400).json({
-      status: "failed",
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
@@ -70,98 +63,72 @@ const deleteReview = async (req, res) => {
     const { id } = req.body;
     const review = await func.deleteReview(id);
     if (review) {
-      return res
-        .status(200)
-        .json({ message: "deleted sucessfully", sucess: "true", data: review });
+      return res.status(200).json({ 
+          success: true, 
+          message: "deleted successfully", 
+          data: review });
     } else {
-      return res
-        .status(400)
-        .json({ status: "failed", message: "delete failed", sucess: "false" });
+      return res.status(200).json({ 
+          success: false,  
+          message: "delete failed", 
+        });
     }
   } catch (error) {
-    return res.status(400).json({
-      status: "failed",
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
-const getReview = async (req, res) => {
+const getReviewById = async (req, res) => {
   try {
-    const { id } = req.query;
-    const review = await func.getReview({ _id: id });
-    if (review.length == 0) {
-      return res
-        .status(200)
-        .json({ status: "review not found", sucess: "false" });
-    } else {
-      return res
-        .status(200)
-        .json({ status: "sucessful", sucess: "true", data: review });
-    }
+    const review = await func.getReviewById(req);
+      return res.status(200).json({ 
+        success: true, 
+        message: "Review By Id!", 
+        data: review, 
+      });
   } catch (error) {
-    return res.status(400).json({
-      status: "failed",
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 const getAllReview = async (req, res) => {
   try {
-    const { userId } = req.query;
-    const review = await func.getAllReview(userId);
+    const review = await func.getAllReview(req);
     if (review.length == 0) {
-      return res
-        .status(200)
-        .json({ status: "review not found", sucess: "false" });
+      return res.status(200).json({ 
+          success: false, 
+          message: "review not found", 
+        });
     } else {
-      return res
-        .status(200)
-        .json({ status: "sucessful", sucess: "true", data: review });
+      const { managerId } = req.query;
+      const avgRating = await func.avgRating(managerId);
+      const totalreviews = await func.totalProfileReviews(req);
+      return res.status(200).json({ 
+        success: true, 
+        message: "All Reviews By ManagerId", 
+        data: {
+          review,
+          totalreviews,
+          avgRating
+        }, 
+      });
     }
   } catch (error) {
-    return res.status(400).json({
-      status: "failed",
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
-  }
-};
-
-const getAverageRating = async (req, res) => {
-  try {
-    const { managerId } = req.body;
-    const result = await reviewModel.aggregate([
-      { $match: { managerId: new mongoose.Types.ObjectId(managerId) } },
-      {
-        $group: {
-          _id: "$managerId",
-          averageRating: { $avg: "$rating" },
-          totalReviews: { $sum: 1 },
-        },
-      },
-    ]);
-    const rating =
-      result.length > 0 ? result[0] : { averageRating: 0, totalReviews: 0 };
-
-    return res
-      .status(200)
-      .json({ status: "sucessful", sucess: "true", data: rating });
-  } catch (error) {
-    console.error("Error getting average rating:", error);
-    res
-      .status(400)
-      .json({
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
-    throw error;
   }
 };
 
@@ -169,7 +136,6 @@ module.exports = {
   createReview,
   updateReview,
   deleteReview,
-  getReview,
+  getReviewById,
   getAllReview,
-  getAverageRating,
 };

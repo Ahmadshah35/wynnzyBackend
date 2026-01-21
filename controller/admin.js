@@ -5,138 +5,111 @@ const mongoose = require("mongoose");
 const adminModel = require("../models/admin");
 
 const signUpAdmin = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validate = await func.validiateAdminEmail(req);
-    // console.log(validate)
     if (validate) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "Email already exists", sucess: "false" });
-    }
-    const admin = await func.signUpAdmin(req, session);
-    if (!admin) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "admin creation failed", sucess: "false" });
-    }
-    const userData = {
-      email: admin.email,
-      Otp: admin.otp,
-    };
-    const sendmail = await mailer.sendMail(userData);
-    const token = jwt.sign(
-      { userId: admin._id, email: admin.email },
-      process.env.JWT_SECRET_TOKEN,
-      { expiresIn: "5d" }
-    );
+        .status(200)
+        .json({ message: "Email already exists", success: false });
+    } else {
+          const admin = await func.signUpAdmin(req);
+          const userData = {
+            email: admin.email,
+            Otp: admin.otp,
+          };
+          const sendmail = await mailer.sendMail(userData);
+          const token = jwt.sign(
+            { userId: admin._id, email: admin.email },
+            process.env.JWT_SECRET_TOKEN,
+            { expiresIn: "5d" }
+          );
 
-    const adminWithoutPassword = {
-      _id: admin._id,
-      email: admin.email,
-      isVerified: admin.isVerified,
-      otp: admin.otp,
-    };
+          const adminWithoutPassword = {
+            _id: admin._id,
+            email: admin.email,
+            isVerified: admin.isVerified,
+            otp: admin.otp,
+          };
 
-    res.status(200).json({
-      message: "Successfully created",
-      sucess: "true",
-      data: adminWithoutPassword,
-      token: token,
-    });
-    await session.commitTransaction();
-    session.endSession();
-    return;
+          return res.status(200).json({
+            message: "Successfully created",
+            success: true,
+            data: adminWithoutPassword,
+            token: token,
+          });
+    
+    }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Transaction failed:", error);
     return res.status(500).json({
+      success: false,
       message: "Something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
 };
 
 const loginAdmin = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validate = await func.validiateAdminEmail(req);
     if (!validate) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "eamil not found", sucess: "false" });
-    }
-    const { password } = req.body;
-    const id=validate._id
-    const admin = await func.getAdmin(id);
-    // console.log(admin)
-    if (!admin) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(404)
-        .json({ message: "admin not found", sucess: "false" });
-    }
-    const compare = await func.comparePassword(password, admin.password);
-    if (!compare) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(401)
-        .json({ message: "Invalid password", sucess: "false" });
-    }
-    const token = jwt.sign(
-      { userId: admin._id, email: admin.email },
-      process.env.JWT_SECRET_TOKEN,
-      { expiresIn: "5d" }
-    );
+        .status(200)
+        .json({ message: "email not found", success: false });
+    } else {
+          const { password } = req.body;
+          const id=validate._id
+          const admin = await func.getAdmin(id);
+    
+          const compare = await func.comparePassword(password, admin.password);
+        if (!compare) {
+            return res
+            .status(401)
+            .json({ message: "Invalid password", success: false });
+        } else {
+            const token = jwt.sign(
+            { userId: admin._id, email: admin.email },
+            process.env.JWT_SECRET_TOKEN,
+            { expiresIn: "5d" });
 
-    const adminWithoutPassword = await adminModel
-      .findById(admin._id)
-      .select("-password")
-      .lean();
-    res.status(200).json({
-      status: "successful",
-      sucess: "true",
-      data: adminWithoutPassword,
-      token: token,
-    });
-    await session.commitTransaction();
-    session.endSession();
-    return;
+            const adminWithoutPassword = await adminModel
+              .findById(admin._id)
+              .select("-password")
+              .lean();
+            return res.status(200).json({
+              message: "Loggedin Successsfully!",
+              success: true,
+              data: adminWithoutPassword,
+              token: token,
+            });
+        }
+  }    
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Transaction failed:", error);
     return res.status(500).json({
+      success: false,
       message: "Something went wrong",
-      sucess: "false",
       error: error.message,
     });
   }
 };
 
 const verifyAdminOtp = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
-    const verifyOtpp = await func.verifyAdminOtp(req, session);
-    // console.log(verifyOtp)
-    if (verifyOtpp) {
-      const email = verifyOtpp.email;
-      const isVerified = await func.isVerifiedAdmin(email, session);
-      // console.log(isVerified)
-      if (isVerified) {
+    const verifyOtpp = await func.verifyAdminOtp(req);
+    if (!verifyOtpp) {
+        return res
+        .status(200)
+        .json({ message: "give valid credentials", success: false });
+    } else {
+         const email = verifyOtpp.email;
+      const isVerified = await func.isVerifiedAdmin(email);
+      
+      if (!isVerified) {
+          return res
+          .status(200)
+          .json({ message: "admin is not verified", success: false });
+      } else {
         verifyOtpp.otp = null;
         await verifyOtpp.save();
         const token = jwt.sign(
@@ -152,52 +125,42 @@ const verifyAdminOtp = async (req, res) => {
           isVerified: verifyOtpp.isVerified,
           otp: verifyOtpp.otp,
         };
-        res.status(200).json({
-          message: "sucessfully verified",
-          sucess: "true",
+        return res.status(200).json({
+          message: "success verified",
+          success: true,
           data: adminWithoutPassword,
           token: token,
         });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "admin is not verified", sucess: "false" });
       }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "give valid credentials", sucess: "false" });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).json({
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+   console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
 const resendAdminOtp = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validiate = await func.validiateAdminEmail(req);
-    // console.log(validiate)
-    if (validiate) {
+   
+    if (!validiate) {
+      return res
+        .status(401)
+        .json({ message: "invalid email", success: false });
+    } else {
       const email = validiate.email;
-      // console.log(email)
-      const resendOtp = await func.resendAdminOtp(email, session);
-      // console.log(resendOtp)
-      if (resendOtp) {
+      
+      const resendOtp = await func.resendAdminOtp(email);
+  
+      if (!resendOtp) {
+          return res
+          .status(200)
+          .json({ message: "otp doesn't sent", success: false });
+      } else {
         const userData = {
           email: email,
           Otp: resendOtp.otp,
@@ -207,48 +170,38 @@ const resendAdminOtp = async (req, res) => {
           .findById(validiate._id)
           .select("-password")
           .lean();
-        res.status(200).json({
-          message: "sucessfully otp send",
-          sucess: "true",
+        return res.status(200).json({
+          message: "success otp send",
+          success: true,
           data: adminWithoutPassword,
         });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "otp doesn't sent", sucess: "false" });
       }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(401)
-        .json({ message: "invalid email", sucess: "false" });
-    }
+    };
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).json({
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
 const forgetAdminPassword = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validiate = await func.validiateAdminEmail(req);
-    if (validiate) {
+    if (!validiate) {
+              return res
+        .status(401)
+        .json({ message: "invalid email", success: false });
+    } else {
       const email = validiate.email;
-      const passwordOtp = await func.passwordAdminOtp(email, session);
-      if (passwordOtp) {
+      const passwordOtp = await func.passwordAdminOtp(email);
+      if (!passwordOtp) {
+        return res
+          .status(200)
+          .json({ message: "otp doesn't sent", success: false });
+      } else {
         const userData = {
           email: email,
           Otp: passwordOtp.otp,
@@ -258,42 +211,24 @@ const forgetAdminPassword = async (req, res) => {
           .findById(validiate._id)
           .select("-password")
           .lean();
-        res.status(200).json({
-          message: "sucessfully otp send",
-          sucess: "true",
+        return res.status(200).json({
+          message: "success otp send",
+          success: true,
           data: adminWithoutPassword,
         });
-        await session.commitTransaction();
-        session.endSession();
-        return;
-      } else {
-        await session.abortTransaction();
-        session.endSession();
-        return res
-          .status(400)
-          .json({ message: "otp doesn't sent", sucess: "false" });
       }
-    } else {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(401)
-        .json({ message: "invalid email", sucess: "false" });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).json({
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
 const resetAdminPassword = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const validiate = await func.validiateAdminEmail(req);
 
@@ -302,91 +237,73 @@ const resetAdminPassword = async (req, res) => {
       const { newPassword } = req.body;
       const resetPassword = await func.resetAdminPassword(
         email,
-        newPassword,
-        session
+        newPassword
       );
       if (resetPassword) {
         const adminWithoutPassword = await adminModel
           .findById(resetPassword._id)
           .select("-password")
           .lean();
-        res.status(200).json({
-          message: "updated sucessfully ",
-          sucess: "true",
+        return res.status(200).json({
+          success: true,
+          message: "updated success ",
           data: adminWithoutPassword,
         });
-        await session.commitTransaction();
-        session.endSession();
-        return;
       } else {
-        await session.abortTransaction();
-        session.endSession();
         return res
-          .status(400)
-          .json({ message: "unsucessfully not updated", sucess: "false" });
+          .status(200)
+          .json({ message: "unsuccessfully not updated", success: false });
       }
     } else {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "kindly give valid email", sucess: "false" });
+        .status(200)
+        .json({ message: "kindly give valid email", success: false });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).json({
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };
 
 const resetAdminEmail = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const admin = await func.getAdmin(req);
-    //   console.log(admin)
+   
     if (admin) {
       const { email } = req.body;
       const id = admin._id;
-      const resetEmail = await func.updateAdminEmail(id, email, session);
+      const resetEmail = await func.updateAdminEmail(id, email);
       if (resetEmail) {
         const adminWithoutPassword = await adminModel
           .findById(resetEmail._id)
           .select("-password")
           .lean();
         res.status(200).json({
-          message: "updated sucessfully ",
-          sucess: "true",
+          success: true,
+          message: "updated successfully ",
           data: adminWithoutPassword,
         });
-        await session.commitTransaction();
-        session.endSession();
         return;
       } else {
-        await session.abortTransaction();
-        session.endSession();
         return res
-          .status(400)
-          .json({ message: "unsucessfully not updated", sucess: "false" });
+          .status(200)
+          .json({ message: "unsuccessfully not updated", success: false });
       }
     } else {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ message: "kindly give valid email", sucess: "false" });
+        .status(200)
+        .json({ message: "kindly give valid email", success: false });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res.status(500).json({
-      message: "something went wrong",
-      sucess: "false",
-      error: error.message,
+   console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
     });
   }
 };

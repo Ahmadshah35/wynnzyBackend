@@ -1,67 +1,72 @@
 const serviceModel = require("../models/service");
 
-const createSevices = async (req, session) => {
-  // req.body.location = {
-  //   type: "Point",
-  //   coordinates: [
-  //     parseFloat(req.body.longitude),
-  //     parseFloat(req.body.latitude),
-  //   ],
-  //   name: req.body.locationName,
-  // };
+const createSevices = async (req) => {
   const services = new serviceModel(req.body);
   if (!req.files || Object.keys(req.files).length === 0) {
     throw new Error("At least one file is required");
   }
-  const imagesFiles = req.files.map((file) => file.path);
+  const imagesFiles = req.files.map((file) => file.filename);
 
-  if (!imagesFiles.length) {
-    throw new Error("  images are required");
-  }
   services.images = imagesFiles;
-  const result = await services.save({ session });
+  const result = await services.save();
   return result;
 };
 
-const updateServices = async (id, userData, files, session) => {
-  const existingService = await serviceModel.findById(id);
-  if (!existingService) {
-    throw new Error("Profile not found");
+const updateServices = async (req) => {
+  const { serviceId } = req.body;
+  const userData = req.body;
+  const image = req.files.images;
+  if (!image) {
+    const updateService = await serviceModel.findByIdAndUpdate(
+      serviceId,
+      { $set: userData },
+      { new: true }
+    );
+    return updateService;
+  } else {
+    const image = req.files.images.map((file) => file.filename);
+    const updatedService = await serviceModel.findByIdAndUpdate(
+      serviceId,
+      { $set: { ...userData }, $push: { images: image } },
+      { new: true }
+    );
+    return updatedService;
   }
-
-  const newImages = Array.isArray(files) ? files.map((file) => file.path) : [];
-
-  userData.images = Array.isArray(existingService.images)
-    ? [...existingService.images, ...newImages]
-    : newImages;
-
-  const updatedService = await serviceModel.findByIdAndUpdate(
-    id,
-    { $set: userData },
-    { new: true, session }
-  );
-
-  return updatedService;
 };
 
-const deleteServices = async (id, session) => {
+const deleteServices = async (id) => {
   const services = await serviceModel.findByIdAndDelete(id, {
-    new: true,
-    session,
+    new: true
   });
   console.log("object", services);
   return services;
 };
 
-const getServices = async (id) => {
-  const services = await serviceModel.findById(id);
+const getServices = async (req) => {
+  const { serviceId } = req.query;
+  const services = await serviceModel.findById({_id: serviceId});
   return services;
 };
 
-const getAllServices = async (userId) => {
-  const services = await serviceModel.find(userId);
+const getAllServices = async (req) => {
+  const services = await serviceModel.find();
   return services;
 };
+
+const servicesByManagerId = async (req) => {
+  const { managerId, status, serviceCategory } = req.query;
+  const filter = { managerId };
+  if(status){
+    filter.status = status
+  };
+  if(serviceCategory){
+    filter.serviceCategory = serviceCategory
+  };
+  console.log("first :", filter);
+  // return
+    const services = await serviceModel.find(filter);
+    return services
+}
 
 module.exports = {
   createSevices,
@@ -69,5 +74,5 @@ module.exports = {
   deleteServices,
   getServices,
   getAllServices,
- 
+  servicesByManagerId
 };

@@ -1,14 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
-const { v4: uuidv4 } = require("uuid");
-const { createService, updateService, deleteService, getService, getAllServices } = require("../controller/service");
+const serviceController = require("../controller/service");
+const categoryController = require("../controller/category");
 
 const serviceStorage = multer.diskStorage({
-  destination: "./public/service", 
+  destination: "./public/service",
   filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
+    cb(null, Date.now() + "-" + file.originalname);
   },
 });
 
@@ -16,21 +15,19 @@ const serviceUpload = multer({
   storage: serviceStorage,
 });
 
-router.post(
-  "/service/createService",
-  serviceUpload.array("images", 3), 
-  createService
-);
+// Category Routes
+router.post("/user/addCategory", serviceUpload.single("image"), categoryController.addcategory);
+router.get("/user/getCategoryById", categoryController.getCatgory);
+router.get("/user/getAllcategories", categoryController.getAllCategories);
+router.post("/user/updateCategory", serviceUpload.single("image"), categoryController.updateCategory);
+router.post("/user/deleteCategory", categoryController.deleteCategory);
 
-router.post(
-  "/service/updateService",
-  serviceUpload.array("images", 3), 
-  updateService
-);
-
-router.post("/service/deleteService", deleteService);
-router.get("/service/getService", getService);
-router.get("/service/getAllServices", getAllServices);
-
+// Service Routes
+router.post("/user/createService", serviceUpload.array("images", 3), serviceController.createService);
+router.post("/user/updateService",serviceUpload.array("images", 3),serviceController.updateService);
+router.post("/user/deleteService", serviceController.deleteService);
+router.get("/user/getService", serviceController.getService);
+router.get("/user/getAllServices", serviceController.getAllServices);
+router.get("/user/servicesByManagerId", serviceController.getAllServicesByManager);
 
 module.exports = router;

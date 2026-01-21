@@ -1,16 +1,15 @@
-const express=require("express")
-const { signUpAdmin, loginAdmin, resendAdminOtp, resetAdminPassword, resetAdminEmail, verifyAdminOtp, forgetAdminPassword } = require("../controller/admin")
+const express = require("express");
+const adminController = require("../controller/admin");
 // const userAuth = require("../middleware/auth")
 
-const router=express.Router()
+const router = express.Router();
 
-router.post("/admin/signUpAdmin",signUpAdmin)
-router.post("/admin/loginAdmin",loginAdmin)
-router.post("/admin/resendAdminOtp",resendAdminOtp)
-router.post("/admin/resetAdminPassword",resetAdminPassword)
-router.post("/admin/resetAdminEmail",resetAdminEmail)
-router.post("/admin/verifyAdminOtp",verifyAdminOtp)
-router.post("/admin/forgetAdminPassword",forgetAdminPassword)
+router.post("/admin/signUpAdmin", adminController.signUpAdmin);
+router.post("/admin/loginAdmin", adminController.loginAdmin);
+router.post("/admin/resendAdminOtp", adminController.resendAdminOtp);
+router.post("/admin/resetAdminPassword", adminController.resetAdminPassword);
+router.post("/admin/resetAdminEmail", adminController.resetAdminEmail);
+router.post("/admin/verifyAdminOtp", adminController.verifyAdminOtp);
+router.post("/admin/forgetAdminPassword", adminController.forgetAdminPassword);
 
-
-module.exports=router
+module.exports = router;

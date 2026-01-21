@@ -1,17 +1,17 @@
-const { default: mongoose } = require("mongoose");
+const mongoose = require("mongoose");
 const petModel = require("../models/pet");
 
-const createPet = async (req, session) => {
+const createPet = async (req) => {
   try {
     if (!req.files || (!req.files.profileImage && !req.files.petImages)) {
       throw new Error("At least one image must be provided");
     }
 
     const profileImage = req.files.profileImage
-      ? req.files.profileImage[0].path
+      ? req.files.profileImage[0].filename
       : null;
     const petImages = req.files.petImages
-      ? req.files.petImages.map((file) => file.path)
+      ? req.files.petImages.map((file) => file.filename)
       : [];
 
     const pet = new petModel({
@@ -20,39 +20,36 @@ const createPet = async (req, session) => {
       petImages,
     });
 
-    const result = await pet.save({ session });
+    const result = await pet.save();
     return result;
   } catch (error) {
     throw new Error(error.message);
   }
 };
 
-const updatePet = async (id, userData, req, session) => {
-  try {
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error("Invalid Pet ID");
-    }
-
-    let updateFields = { ...userData };
-
-    if (req.files && req.files.length > 0) {
-      updateFields.petImages = req.files.map((file) => file.path);
-      updateFields.profileImage = updateFields.images[0];
-    }
-
+const updatePet = async (req) => {
+  const { id } = req.body;
+  const updatedData = req.body;
+  const profileImage = req.files.profileImage;
+  if (profileImage && profileImage.length > 0) {
+    updatedData.profileImage = req.files.profileImage[0].filename;
+  }
+  const petimages = req.files.petImages;
+  if (!petimages) {
     const pet = await petModel.findByIdAndUpdate(
       id,
-      { $set: updateFields },
-      { new: true, session }
+      { $set: { ...updatedData } },
+      { new: true }
     );
-
-    if (!pet) {
-      throw new Error("Pet not found");
-    }
-
     return pet;
-  } catch (error) {
-    throw new Error(error.message);
+  } else {
+    const petImages = req.files.petImages.map((file) => file.filename);
+    const pet = await petModel.findByIdAndUpdate(
+      id,
+      { $set: { ...updatedData }, $push: { petImages: petImages } },
+      { new: true }
+    );
+    return pet;
   }
 };
 
@@ -66,8 +63,9 @@ const getAllPets = async (userId) => {
   return pet;
 };
 
-const getPet = async (id) => {
-  const pet = await petModel.findById(id);
+const getPet = async (req) => {
+  const { petProfileId } = req.query;
+  const pet = await petModel.findById({_id: petProfileId});
   return pet;
 };
 

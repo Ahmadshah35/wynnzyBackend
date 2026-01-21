@@ -1,7 +1,7 @@
 const locationModel = require("../models/location");
 const mongoose = require("mongoose");
 
-const createLocation = async (req, session) => {
+const createLocation = async (req) => {
   req.body.location = {
     type: "Point",
     coordinates: [
@@ -11,24 +11,26 @@ const createLocation = async (req, session) => {
     name: req.body.locationName,
   };
   const location = new locationModel(req.body);
-  const result = await location.save({ session });
+  const result = await location.save();
   return result;
 };
 
-const updateLocation = async (id, userData, session) => {
+const updateLocation = async (req) => {
+  const { locationId } = req.body;
+  const updatedData = req.body;
   const location = await locationModel.findByIdAndUpdate(
-    id,
-    { $set: userData },
-    { new: true, session }
+    locationId,
+    { $set: updatedData },
+    { new: true }
   );
   return location;
 };
 
-const deleteLocation = async (id, session) => {
+const deleteLocation = async (req) => {
   try {
+    const { locationId } = req.body;
     const deletedLocation = await locationModel.findOneAndDelete(
-      { _id: id },
-      { session }
+      { _id: locationId }
     );
 
     return deletedLocation;
@@ -38,12 +40,25 @@ const deleteLocation = async (id, session) => {
   }
 };
 
-const getLocation = async (id) => {
-  const location = await locationModel.findById(id);
+const selectLocation = async (req) => {
+    const { userId, locationId } = req.body;
+    const location = await locationModel.updateMany({userId: userId}, {isSelected: false});
+
+    const selected = await locationModel.findByIdAndUpdate({_id: locationId},
+      { $set: {isSelected: true}},
+      { new: true});
+
+      return selected;
+};
+
+const getLocation = async (req) => {
+  const { locationId } = req.query;
+  const location = await locationModel.findById(locationId);
   return location;
 };
 
-const getAllLocation = async (userId) => {
+const getAllLocation = async (req) => {
+  const { userId } = req.query;
   const location = await locationModel.find(userId);
   return location;
 };
@@ -51,6 +66,7 @@ const getAllLocation = async (userId) => {
 module.exports = {
   createLocation,
   updateLocation,
+  selectLocation,
   deleteLocation,
   getLocation,
   getAllLocation,

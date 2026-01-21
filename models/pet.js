@@ -7,6 +7,9 @@ const petSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "user",
     },
+    profileImage:{
+      type:String
+    },
     petName: {
       type: String,
       required: true,
@@ -38,18 +41,15 @@ const petSchema = new mongoose.Schema(
     type:String,
     required:true
    },
-   behaviour:{
+   behaviour: [{
     type:String,
     required:true
-   },
-   
-    petImages: [
-      {
+   }],
+    petImages: [{
         type: String,
-      },
-    ],
-    profileImage:{
-      type:String
+      }],
+    description:{
+      type: String
     },
     createdAt: {
       type: Date,

@@ -1,17 +1,19 @@
 const userModel = require("../models/user");
 const bcrypt = require("bcrypt");
 
-const signUp = async (req, session) => {
-  const { password } = req.body;
-  const user = new userModel(req.body);
-  const salt = await bcrypt.genSalt(10);
-  const hashPassword = await bcrypt.hash(password, salt);
-  user.password = hashPassword;
-  const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = genOtp;
-  const result = await user.save({ session });
+const signUp = async (decode) => {
+  const hashPassword = await bcrypt.hash(decode.password, 10);
+  const user = new userModel({
+    email: decode.email,
+    fullName: decode.fullName,
+    password: hashPassword,
+    type: decode.type,
+  });
+  const result = await user.save();
   return result;
 };
+
+
 
 const validiateEmail = async (req) => {
   const { email } = req.body;
@@ -30,48 +32,19 @@ const comparePassword = async (password, hashPassword) => {
   return compare;
 };
 
-const isVerified = async (email, session) => {
+const isVerified = async (email) => {
   const verify = await userModel.findOneAndUpdate(
     { email: email },
     {
       $set: { isVerified: true },
     },
-    { new: true, session }
+    { new: true }
   );
   return verify;
 };
 
-const verifyOtp = async (req, session) => {
-  const { Otp, email } = req.body;
-  const verify = await userModel
-    .findOne({ email: email, otp: Otp })
-    .session(session);
-  return verify;
-};
 
-const resendOtp = async (email, session) => {
-  const user = await userModel
-    .findOne({ email }, { new: true })
-    .session(session);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = genOtp;
-
-  await user.save({ session });
-  return user;
-};
-
-const passwordOtp = async (email, session) => {
-  const user = await userModel.findOne({ email: email });
-  const genOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = genOtp;
-  const result = await user.save({ session });
-  return result;
-};
-
-const resetPassword = async (email, newPassword, session) => {
+const resetPassword = async (email, newPassword) => {
   const salt = await bcrypt.genSalt(10);
   const hashPassword = await bcrypt.hash(newPassword, salt);
   const resetPassword = await userModel.findOneAndUpdate(
@@ -79,29 +52,60 @@ const resetPassword = async (email, newPassword, session) => {
     {
       $set: { password: hashPassword },
     },
-    { new: true, session }
+    { new: true }
   );
   return resetPassword;
 };
 
-const verify = async (userId, session) => {
+const verify = async (userId) => {
   const verify = await userModel.findOneAndUpdate(
     { _id: userId },
     { $set: { isVerified: true } },
-    { new: true, session }
+    { new: true }
   );
   return verify;
 };
 
-// const type = async (req, session) => {
-//   const { id, type } = req.body;
-//   const types = await userModel.findOneAndUpdate(
-//     { _id: id },
-//     { $set: { type: type } },
-//     { new: true, session }
-//   );
-//   return types;
-// };
+const deleteUser = async (req) => {
+  const { userId } = req.body;
+  const result = await userModel.findByIdAndDelete({_id: userId});
+  return result
+};
+
+const profileCreated = async (req) => {
+    const { managerId } = req.body;
+    const user = await userModel.findByIdAndUpdate({_id: managerId},
+      { $set: { profileCreated: true }},
+      { new: true }
+    );
+    return user
+};
+
+const updateUser = async (req) => {
+  const { userId } = req.body;
+  const updatedData = req.body
+  console.log("first :", updatedData);
+  if(req.file && req.file.filename){
+      const imagePath = req.file.filename;
+      const user = await userModel.findByIdAndUpdate({_id: userId}, 
+        { $set: updatedData, profileImage: imagePath },
+        { new: true }
+      ).select("-password"); 
+      return user;
+  } else {
+    const user = await userModel.findByIdAndUpdate({_id: userId}, 
+      { $set: updatedData },
+      { new: true}
+    ).select("-password");
+    return user
+  }
+};
+
+const userProfile = async (req) => {
+  const { userId } = req.query;
+  const user = await userModel.findById(userId).select("-password");
+  return user;
+};
 
 module.exports = {
   signUp,
@@ -110,9 +114,9 @@ module.exports = {
   resetPassword,
   comparePassword,
   isVerified,
-  verifyOtp,
-  resendOtp,
-  passwordOtp,
-  // type,
   verify,
+  deleteUser,
+  profileCreated,
+  updateUser,
+  userProfile
 };

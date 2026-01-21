@@ -4,157 +4,118 @@ const petModel = require("../models/pet");
 const userModel = require("../models/user");
 
 const createPet = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { userId } = req.body;
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return res
-        .status(400)
-        .json({ error: "Invalid user ID", sucess: "false" });
-    }
-
     const user = await userModel.findById(userId);
 
     if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ error: "User not found", sucess: "false" });
+      return res.status(200).json({ message: "User not found", success: false });
     }
 
     if (user.type !== "User") {
       return res
-        .status(403)
-        .json({ error: "Unauthorized user type", sucess: "false" });
+        .status(200)
+        .json({ message: "Unauthorized user type", success: false });
     }
 
     if (!req.files || req.files.length === 0) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ error: "At least one image is required", sucess: "false" });
+        .status(200)
+        .json({ message: "At least one image is required", success: false });
     }
 
-    const pets = await pet.createPet(req, session);
+    const pets = await pet.createPet(req);
 
     if (!pets) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
+        .status(200)
         .json({
-          status: "failed",
+          success: false,
           message: "Data isn't saved in the database",
-          sucess: "false",
         });
     }
 
-    res.status(200).json({ status: "success", sucess: "true", data: pets });
-    await session.commitTransaction();
-    session.endSession();
-    return;
+    return res.status(200).json({
+      success: true, 
+      message: "Pet Profile Created!", 
+      data: pets
+      });
+    
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({ status: "failed", sucess: "false", message: error.message });
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
 const updatePet = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const { id, ...userData } = req.body;
-
-    if (req.files && req.files.length > 0) {
-      userData.images = req.files.map((file) => file.path);
-      userData.profileImage = userData.images[0];
-    }
-
-    const pets = await pet.updatePet(id, userData, session);
-
-    if (!pets) {
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ status: "failed", sucess: "false", message: "Update failed" });
-    }
-
-    res.status(200).json({ status: "success", sucess: "true", data: pets });
-    await session.commitTransaction();
-    session.endSession();
-    return;
+    const pets = await pet.updatePet(req);
+    return res.status(200).json({
+      success: true,
+      message: "Pet Profile Updated!", 
+      data: pets 
+    });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(500)
-      .json({ status: "failed", sucess: "false", message: error.message });
+console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
 const deletePet = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const { id } = req.body;
     const pets = await pet.deletePet(id);
     if (pets) {
-      res
-        .status(200)
-        .json({ message: "deleted sucessfully", sucess: "true", data: pets });
-      await session.commitTransaction();
-      session.endSession();
-      return;
-    } else {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ status: "failed", message: "delete failed", sucess: "false" });
+        .status(200)
+        .json({ message: "deleted successfully", success: true, data: pets });
+    } else {
+      return res.status(200).json({ 
+        success: false, 
+        message: "Failed To Delete!", 
+      });
     }
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    return res
-      .status(400)
-      .json({
-        status: "failed",
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
 const getPet = async (req, res) => {
   try {
-    const { id } = req.query;
-    const pets = await pet.getPet(id);
+    // const { petProfileId } = req.query;
+    const pets = await pet.getPet(req);
     if (pets) {
-      return res
-        .status(200)
-        .json({ status: "sucessful", sucess: "true", data: pets });
+      return res.status(200).json({ 
+          success: true, 
+          message: "Pet Profile By Id!", 
+          data: pets, 
+        });
     } else {
-      return res
-        .status(400)
-        .json({ status: "failed", message: "pet not found", sucess: "false" });
+      return res.status(200).json({ 
+          success: false,
+          message: "pet not found", 
+         });
     }
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        status: "failed",
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
@@ -163,38 +124,34 @@ const getAllPets = async (req, res) => {
     const { userId } = req.query;
     const pets = await pet.getAllPets({ userId: userId });
     if (pets) {
-      return res
-        .status(200)
-        .json({ status: "sucessful", sucess: "true", data: pets });
+      return res.status(200).json({ 
+          success: true, 
+          message: "All Pet Profiles By User", 
+          data: pets });
     } else {
-      return res
-        .status(400)
-        .json({ status: "failed", message: "pet not found", sucess: "false" });
+      return res.status(200).json({ 
+        success: false, 
+        message: "pet not found", 
+      });
     }
   } catch (error) {
-    return res
-      .status(400)
-      .json({
-        status: "failed",
-        message: "something went wrong",
-        sucess: "false",
-        error: error.message,
-      });
+   console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 
 const singleImage = async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
   try {
     const { id } = req.body;
 
     if (!req.file) {
-      await session.abortTransaction();
-      session.endSession();
       return res
-        .status(400)
-        .json({ error: "File must be provided", sucess: "false" });
+        .status(200)
+        .json({ message: "File must be provided", success: false });
     }
 
     const imagePath = req.file.path;
@@ -206,21 +163,21 @@ const singleImage = async (req, res) => {
     );
 
     if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).json({ error: "Pet not found", sucess: "false" });
+      return res.status(200).json({ message: "Pet not found", success: false });
     }
     res
       .status(200)
-      .json({ message: "Image uploaded successfully", sucess: "true", user });
-    await session.commitTransaction();
-    session.endSession();
+      .json({ message: "Image uploaded successfully", success: true, user });
+
 
     return;
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    res.status(500).json({ error: error.message });
+    console.log("Having Errors :", error);
+    return res.status(500).json({ 
+      success: false,
+      message: "Having Errors !",
+      error: error.message
+    });
   }
 };
 

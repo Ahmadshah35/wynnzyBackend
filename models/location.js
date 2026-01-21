@@ -5,10 +5,6 @@ const locationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "user",
   },
-  locationName: {
-    type: String,
-    required: true,
-  },
   location: {
     type: {
       type: String,
@@ -24,13 +20,22 @@ const locationSchema = new mongoose.Schema({
       required: true,
     },
   },
+  locationName: {
+    type: String,
+    required: true,
+  },
   longitude:{
     type:Number
   },
   latitude:{
     type:Number
+  },
+  isSelected: {
+    type: Boolean
   }
 });
+
+locationSchema.index({ location: "2dsphere" });
 
 const locationModel = mongoose.model("location", locationSchema);
 module.exports = locationModel;

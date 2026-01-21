@@ -7,12 +7,12 @@ const userAuth = async (req, res, next) => {
   if (authorization && authorization.startsWith("Bearer")) {
     try {
       token = authorization.split(" ")[1];
-      // console.log(token)
+      
       const { userId } = jwt.verify(token, process.env.JWT_SECRET_TOKEN);
-      // console.log(userId)
-      req.user = await userModel.findById( userId ).select("-password");
-      // console.log(req.user)
-      next()
+
+      req.user = await userModel.findById(userId).select("-password");
+
+      next();
     } catch (error) {
       res
         .status(300)

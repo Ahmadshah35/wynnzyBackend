@@ -1,17 +1,12 @@
 const express = require("express");
-const {
-  createLocation,
-  upadateLocation,
-  deleteLocation,
-  getLocation,
-  getAllLocation,
-} = require("../controller/location");
+const locationController = require("../controller/location");
 
 const router = express.Router();
 
-router.post("/location/createLocation", createLocation);
-router.post("/location/updateLocation", upadateLocation);
-router.post("/location/deleteLocation", deleteLocation);
-router.get("/location/getLocation", getLocation);
-router.get("/location/getAllLocation", getAllLocation);
+router.post("/user/createLocation", locationController.createLocation);
+router.post("/user/updateLocation", locationController.upadateLocation);
+router.post("/user/deleteLocation", locationController.deleteLocation);
+router.get("/user/getLocation", locationController.getLocation);
+router.get("/user/getAllLocation", locationController.getAllLocation);
+router.post("/user/selecLocation", locationController.selectUserLocation);
 module.exports = router;

@@ -5,13 +5,13 @@ const userSchema = new mongoose.Schema(
     fullName: {
       type: String,
     },
+    profileImage: {
+      type: String
+    },
     email: {
       type: String,
     },
     password: {
-      type: String,
-    },
-    otp: {
       type: String,
     },
     type: {
@@ -22,18 +22,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    image:{
-      type:String
+    profileCreated:{
+      type: Boolean,
+      default: false
     },
-    contactNumber:{
-      type:Number
-    },
-    bio:{
-      type:String
-    },
-    expLevel:{
-      type:Number
-    }
   },
   { timestamps: true }
 );
