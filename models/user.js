@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
     },
+    favProducts: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    }],
     type: {
       type: String,
       enum: ["User", "Daycare"],
