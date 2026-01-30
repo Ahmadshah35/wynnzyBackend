@@ -18,6 +18,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["User", "Daycare"],
     },
+    favProducts:[{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Product"
+    }],
     isVerified: {
       type: Boolean,
       default: false,
