@@ -15,7 +15,6 @@ const locationRouter=require("./route/location")
 const bookingRouter=require("./route/booking")
 const adminRouter=require("./route/admin")
 const otpRouter=require("./route/otp")
-const productRouter=require("./route/product")
 
 const bodyparser = require("body-parser");
 app.use(cors());
@@ -26,7 +25,6 @@ app.use(bodyparser.json());
 app.use("/",express.static(path.resolve(__dirname,"./public/bProfile")))
 app.use("/",express.static(path.resolve(__dirname,"./public/pet")))
 app.use("/",express.static(path.resolve(__dirname,"./public/service")))
-app.use("/",express.static(path.resolve(__dirname,"./public/product")))
 
 app.use("/api", userRouter);
 app.use("/api", petRouter);
@@ -37,7 +35,6 @@ app.use("/api",locationRouter );
 app.use("/api", bookingRouter);
 app.use("/api", adminRouter);
 app.use("/api", otpRouter);
-app.use("/api", productRouter);
 
 
 
@@ -45,7 +42,7 @@ const start = () => {
   try {
     connectDb();
     app.listen(PORT, () => {
-      console.log(`Server started on http://localhost:${PORT}`);
+      console.log(`Server started on Port:${PORT}`);
     });
   } catch (error) {
     console.log("Error: ", error);
