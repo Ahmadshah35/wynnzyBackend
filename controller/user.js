@@ -4,6 +4,86 @@ const jwt = require("jsonwebtoken");
 const mailer = require("../helper/mailer");
 const mongoose = require("mongoose");
 const userModel = require("../models/user");
+const bcrypt = require("bcrypt");
+
+
+const socialLogin =async (req, res) => {
+  try {
+    const { fullName, email, socialType, socialId } = req.body;
+
+    const validate = await userModel.findOne({ email: email });
+
+    if (validate) {
+      // if (validate.isDeleted == true) {
+      //   return res.status(200).json({
+      //     success: false,
+      //     message: "User account is Deleted cannot Login",
+      //   });
+      // }
+      const token = jwt.sign(
+        { _id: validate._id, email: validate.email, type: validate.type },
+        process.env.JWT_SECRET_TOKEN,
+        { expiresIn: "5y" }
+      );
+
+      const safeUser = await userModel.findByIdAndUpdate(
+        { _id: validate._id },
+        { $set: { socialId: socialId, socialType: socialType } },
+        { new: true }
+      ).select("-password");
+
+      res.status(200).json({
+        message: "Logged In successfully",
+        success: true,
+        data: safeUser,
+        token,
+      });
+    } else {
+      const password = "12345678";
+      const hashPassword = await bcrypt.hash(password, 10);
+      const signUp = new userModel({
+        email: email,
+        password: hashPassword,
+        fullName: fullName,
+        socialType: socialType,
+        socialId: socialId,
+        type: null,
+      });
+      const result = await signUp.save();
+      if (!result) {
+        return res.status(200).json({
+          message: "signUp failed",
+          success: false,
+        });
+      } else {
+        const data = await userModel.findById(result._id).select("-password");
+
+        const token = jwt.sign(
+          {
+            _id: result._id,
+            email: result.email,
+          },
+          process.env.JWT_SECRET_TOKEN,
+          { expiresIn: "1d" }
+        );
+        res.status(200).json({
+          message: "sucessfully SignUp ",
+          data: data,
+          token,
+          success: true,
+        });
+      }
+    }
+  } catch (error) {
+    console.error("signUpOrLoginWithGoogle failed:", error);
+    return res.status(400).json({
+      message: "Having Errors",
+      success: false,
+      error: error.message,
+    });
+  }
+}
+
 
 const signUp = async (req, res) => {
   try {
@@ -250,6 +330,7 @@ const verifyPasswordOTP = async (req, res) => {
 };
 
 module.exports = {
+  socialLogin,
   signUp,
   login,
   resetPassword,

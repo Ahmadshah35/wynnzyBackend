@@ -22,6 +22,15 @@ const userSchema = new mongoose.Schema(
       type:mongoose.Schema.Types.ObjectId,
       ref:"Product"
     }],
+    socialType:{
+      type: String,
+      enum: ["Google", "Facebook", "Apple", null],
+      default: null
+    },
+    socialId:{
+      type: String,
+      default: null
+    },
     isVerified: {
       type: Boolean,
       default: false,

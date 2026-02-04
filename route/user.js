@@ -23,5 +23,5 @@ router.post("/user/resetPassword", userController.resetPassword);
 router.post("/user/forgetPassword", userController.forgetPassword);
 router.post("/user/verifyPasswordOTP", userController.verifyPasswordOTP);
 router.post("/user/deleteUser", userController.deleteUser);
-
+router.post("/user/socialLogin", userController.socialLogin);
 module.exports = router;
