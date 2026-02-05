@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "Wynnzy Backend - Order APIs",
+    "description": "Complete order management API collection for product orders",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"variationId\": \"{{variationId}}\",\n      \"quantity\": 2,\n      \"price\": 29.99\n    }\n  ],\n  \"shippingAddress\": {\n    \"fullName\": \"John Doe\",\n    \"phoneNumber\": \"+1234567890\",\n    \"addressLine1\": \"123 Main Street\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"zipCode\": \"10001\"\n  },\n  \"paymentMethod\": \"Card\",\n  \"subtotal\": 59.98,\n  \"tax\": 5.40,\n  \"shippingFee\": 10.00,\n  \"discount\": 5.00,\n  \"couponCode\": \"SAVE5\",\n  \"totalAmount\": 70.38,\n  \"notes\": \"Please deliver before 5 PM\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/createOrder",
+          "host": ["{{baseUrl}}"],
+          "path": ["createOrder"]
+        },
+        "description": "Create a new product order. Validates user, products, and stock availability. Automatically updates product stock and sold count."
+      },
+      "response": []
+    },
+    {
+      "name": "Get All Orders (Admin)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/getAllOrders?page=1&limit=20&orderStatus=Pending&paymentStatus=Paid&search=John",
+          "host": ["{{baseUrl}}"],
+          "path": ["getAllOrders"],
+          "query": [
+            {
+              "key": "page",
+              "value": "1",
+              "description": "Page number"
+            },
+            {
+              "key": "limit",
+              "value": "20",
+              "description": "Items per page"
+            },
+            {
+              "key": "orderStatus",
+              "value": "Pending",
+              "description": "Filter by order status (Pending, Confirmed, Processing, Shipped, Out_for_Delivery, Delivered, Cancelled, Returned)",
+              "disabled": true
+            },
+            {
+              "key": "paymentStatus",
+              "value": "Paid",
+              "description": "Filter by payment status (Pending, Paid, Failed, Refunded)",
+              "disabled": true
+            },
+            {
+              "key": "userId",
+              "value": "",
+              "description": "Filter by user ID",
+              "disabled": true
+            },
+            {
+              "key": "startDate",
+              "value": "2026-01-01",
+              "description": "Start date for filtering orders",
+              "disabled": true
+            },
+            {
+              "key": "endDate",
+              "value": "2026-12-31",
+              "description": "End date for filtering orders",
+              "disabled": true
+            },
+            {
+              "key": "search",
+              "value": "John",
+              "description": "Search by order number, customer name, or phone",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all orders with filtering and pagination. Admin only endpoint."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Order By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/getOrderById/?id={{orderId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["getOrderById", ""],
+          "query": [
+            {
+              "key": "id",
+              "value": "{{orderId}}",
+              "description": "Order ID"
+            }
+          ]
+        },
+        "description": "Get detailed information about a specific order by its ID. Includes populated user and product details."
+      },
+      "response": []
+    },
+    {
+      "name": "Get User Orders",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/getUserOrders/?userId={{userId}}&page=1&limit=10&orderStatus=Delivered",
+          "host": ["{{baseUrl}}"],
+          "path": ["getUserOrders", ""],
+          "query": [
+            {
+              "key": "userId",
+              "value": "{{userId}}",
+              "description": "User ID"
+            },
+            {
+              "key": "page",
+              "value": "1",
+              "description": "Page number"
+            },
+            {
+              "key": "limit",
+              "value": "10",
+              "description": "Items per page"
+            },
+            {
+              "key": "orderStatus",
+              "value": "Delivered",
+              "description": "Filter by order status",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get all orders for a specific user with pagination and optional status filtering."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Order Status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{orderId}}\",\n  \"orderStatus\": \"Confirmed\",\n  \"notes\": \"Order confirmed and ready for processing\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/updateOrderStatus/",
+          "host": ["{{baseUrl}}"],
+          "path": ["updateOrderStatus", ""]
+        },
+        "description": "Update order status. Valid statuses: Pending, Confirmed, Processing, Shipped, Out_for_Delivery, Delivered, Cancelled, Returned. Automatically tracks status history."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Payment Status",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{orderId}}\",\n  \"paymentStatus\": \"Paid\",\n  \"transactionId\": \"TXN123456789\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/updatePaymentStatus/",
+          "host": ["{{baseUrl}}"],
+          "path": ["updatePaymentStatus", ""]
+        },
+        "description": "Update payment status. Valid statuses: Pending, Paid, Failed, Refunded. Optionally add transaction ID."
+      },
+      "response": []
+    },
+    {
+      "name": "Update Tracking Information",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{orderId}}\",\n  \"trackingNumber\": \"1Z999AA10123456784\",\n  \"shippingCarrier\": \"UPS\",\n  \"estimatedDeliveryDate\": \"2026-02-10\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/updateTracking/",
+          "host": ["{{baseUrl}}"],
+          "path": ["updateTracking", ""]
+        },
+        "description": "Add or update tracking information for an order including tracking number, carrier, and estimated delivery date."
+      },
+      "response": []
+    },
+    {
+      "name": "Cancel Order",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": \"{{orderId}}\",\n  \"cancellationReason\": \"Customer requested cancellation\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/cancelOrder/",
+          "host": ["{{baseUrl}}"],
+          "path": ["cancelOrder", ""]
+        },
+        "description": "Cancel an order and restore product stock. Cannot cancel orders that are already Delivered or Cancelled."
+      },
+      "response": []
+    },
+    {
+      "name": "Get Order Statistics",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/order/statistics?startDate=2026-01-01&endDate=2026-12-31",
+          "host": ["{{baseUrl}}"],
+          "path": ["order", "statistics"],
+          "query": [
+            {
+              "key": "startDate",
+              "value": "2026-01-01",
+              "description": "Start date for statistics",
+              "disabled": true
+            },
+            {
+              "key": "endDate",
+              "value": "2026-12-31",
+              "description": "End date for statistics",
+              "disabled": true
+            }
+          ]
+        },
+        "description": "Get order statistics including total orders by status, total revenue from delivered and paid orders. Optional date range filtering."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "variationId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
