@@ -329,6 +329,28 @@ const verifyPasswordOTP = async (req, res) => {
   }
 };
 
+const getAllUserProfile = async (req, res) => {
+   try {
+      const filter = {};
+      if (req.query.type) {
+        filter.type = req.query.type;
+      }
+      const user = await userModel.find(filter).select("-password");
+      return res.status(200).json({
+        success: true,
+        message: "Profiles!",
+        data: user
+      });
+  } catch (error) {
+      console.log("Having Errors :", error);
+      return res.status(500).json({
+      success: false,
+      message: "something went wrong",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   socialLogin,
   signUp,
@@ -338,5 +360,6 @@ module.exports = {
   updateUser,
   userProfile,
   forgetPassword,
-  verifyPasswordOTP
+  verifyPasswordOTP,
+  getAllUserProfile
 };

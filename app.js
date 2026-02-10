@@ -3,7 +3,7 @@ const cors = require("cors");
 const dotenv = require("dotenv").config();
 const app = express();
 const connectDb = require("./config/configDb");
-PORT = process.env.PORT;
+const PORT = process.env.PORT;
 const path=require("path")
 
 const userRouter = require("./route/user");
@@ -18,6 +18,7 @@ const otpRouter=require("./route/otp")
 const productRouter=require("./route/product")
 const orderRouter=require("./route/order")
 const shippingAddressRouter=require("./route/shippingAddress")
+const cartRouter=require("./route/cart")
 
 const bodyparser = require("body-parser");
 app.use(cors());
@@ -42,6 +43,7 @@ app.use("/api", otpRouter);
 app.use("/api", productRouter);
 app.use("/api", orderRouter);
 app.use("/api", shippingAddressRouter);
+app.use("/api", cartRouter);
 
 
 
@@ -49,7 +51,7 @@ const start = () => {
   try {
     connectDb();
     app.listen(PORT, () => {
-      console.log(`Server started on Port:${PORT}`);
+      console.log(`Server started on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.log("Error: ", error);

@@ -24,4 +24,5 @@ router.post("/user/forgetPassword", userController.forgetPassword);
 router.post("/user/verifyPasswordOTP", userController.verifyPasswordOTP);
 router.post("/user/deleteUser", userController.deleteUser);
 router.post("/user/socialLogin", userController.socialLogin);
+router.get("/user/getAllUserProfile", userController.getAllUserProfile);
 module.exports = router;
