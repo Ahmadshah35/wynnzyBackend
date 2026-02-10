@@ -17,6 +17,7 @@ const adminRouter=require("./route/admin")
 const otpRouter=require("./route/otp")
 const productRouter=require("./route/product")
 const orderRouter=require("./route/order")
+const shippingAddressRouter=require("./route/shippingAddress")
 
 const bodyparser = require("body-parser");
 app.use(cors());
@@ -40,6 +41,7 @@ app.use("/api", adminRouter);
 app.use("/api", otpRouter);
 app.use("/api", productRouter);
 app.use("/api", orderRouter);
+app.use("/api", shippingAddressRouter);
 
 
 

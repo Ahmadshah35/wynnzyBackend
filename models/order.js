@@ -16,7 +16,6 @@ const orderSchema = new mongoose.Schema(
         },
         variationId: {
           type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
         },
         quantity: {
           type: Number,
@@ -31,30 +30,9 @@ const orderSchema = new mongoose.Schema(
       },
     ],
     shippingAddress: {
-      fullName: {
-        type: String,
-        required: true,
-      },
-      phoneNumber: {
-        type: String,
-        required: true,
-      },
-      addressLine1: {
-        type: String,
-        required: true,
-      },
-      city: {
-        type: String,
-        required: true,
-      },
-      state: {
-        type: String,
-        required: true,
-      },
-      zipCode: {
-        type: String,
-        required: true,
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "shippingAddress",
+      required: true,
     },
     paymentMethod: {
       type: String,

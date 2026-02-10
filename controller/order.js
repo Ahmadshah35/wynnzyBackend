@@ -3,114 +3,135 @@ const productModel = require("../models/product");
 const userModel = require("../models/user");
 const mongoose = require("mongoose");
 
-// Create Order
+
 const createOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const {
       userId,
       items,
       shippingAddress,
       paymentMethod,
-      subtotal,
-      tax,
-      shippingFee,
-      discount,
       couponCode,
-      totalAmount,
       notes,
     } = req.body;
 
-    // Validate user
-    const user = await userModel.findById(userId);
+    // 1️⃣ Validate user (WITH session)
+    const user = await userModel.findById(userId).session(session);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Validate products and calculate totals
-    let calculatedSubtotal = 0;
+    let subtotal = 0;
     const orderItems = [];
 
-    for (let item of items) {
-      const product = await productModel.findById(item.productId);
+    // 2️⃣ Process items
+    for (const item of items) {
+      const product = await productModel
+        .findById(item.productId)
+        .session(session);
+
       if (!product) {
+        await session.abortTransaction();
+        session.endSession();
         return res.status(404).json({
           success: false,
           message: `Product not found: ${item.productId}`,
         });
       }
 
-      let itemPrice = item.price;
+      let price;
 
-      // Check stock if variationId is provided
       if (item.variationId) {
         const variation = product.variations.id(item.variationId);
+
         if (!variation) {
+          await session.abortTransaction();
+          session.endSession();
           return res.status(404).json({
             success: false,
             message: `Variation not found for ${product.productName}`,
           });
         }
+
         if (variation.stock < item.quantity) {
+          await session.abortTransaction();
+          session.endSession();
           return res.status(400).json({
             success: false,
             message: `Insufficient stock for ${product.productName}`,
           });
         }
-        itemPrice = variation.price;
+
+        price = variation.price;
+        variation.stock -= item.quantity;
+      } else {
+        price = product.price;
       }
 
-      calculatedSubtotal += itemPrice * item.quantity;
+      product.sold += item.quantity;
+      await product.save({ session });
+
+      subtotal += price * item.quantity;
 
       orderItems.push({
-        productId: item.productId,
+        productId: product._id,
         variationId: item.variationId || null,
         quantity: item.quantity,
-        price: itemPrice,
+        price,
       });
     }
 
-    // Create order
-    const order = await orderModel.create({
-      userId,
-      items: orderItems,
-      shippingAddress,
-      paymentMethod,
-      subtotal: calculatedSubtotal,
-      tax: tax || 0,
-      shippingFee: shippingFee || 0,
-      discount: discount || 0,
-      couponCode,
-      totalAmount,
-      notes,
-      statusHistory: [
+    // 3️⃣ Totals
+    const discount = 0;
+    const TAX_PERCENT = 2;
+    const SHIPPING_FEE = 50;
+
+    const taxAmount = (subtotal * TAX_PERCENT) / 100;
+    const discountAmount = (subtotal * discount) / 100;
+
+    const totalAmount =
+      subtotal + taxAmount + SHIPPING_FEE - discountAmount;
+
+    // 4️⃣ Create order (transaction-safe)
+    const [order] = await orderModel.create(
+      [
         {
-          status: "Pending",
-          updatedAt: new Date(),
-          notes: "Order created",
+          userId,
+          items: orderItems,
+          shippingAddress,
+          paymentMethod,
+          subtotal,
+          tax: TAX_PERCENT,
+          shippingFee: SHIPPING_FEE,
+          discount:discount,
+          couponCode,
+          totalAmount,
+          notes,
+          statusHistory: [
+            {
+              status: "Pending",
+              updatedAt: new Date(),
+              notes: "Order created",
+            },
+          ],
         },
       ],
-    });
+      { session }
+    );
 
-    // Update product stock and sold count
-    for (let item of items) {
-      const product = await productModel.findById(item.productId);
-      if (item.variationId) {
-        const variation = product.variations.id(item.variationId);
-        if (variation) {
-          variation.stock -= item.quantity;
-        }
-      }
-      product.sold += item.quantity;
-      await product.save();
-    }
+    await session.commitTransaction();
+    session.endSession();
 
     const populatedOrder = await orderModel
       .findById(order._id)
       .populate("userId", "-password")
-      .populate("items.productId");
+      .populate("items.productId")
+      .populate("shippingAddress");
 
     res.status(201).json({
       success: true,
@@ -118,6 +139,9 @@ const createOrder = async (req, res) => {
       data: populatedOrder,
     });
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
     res.status(500).json({
       success: false,
       message: error.message,
@@ -138,13 +162,13 @@ const getAllOrders = async (req, res) => {
       page = 1,
       limit = 20,
     } = req.query;
-
+    
     const filter = {};
-
+    
     if (orderStatus) filter.orderStatus = orderStatus;
     if (paymentStatus) filter.paymentStatus = paymentStatus;
     if (userId) filter.userId = userId;
-
+    
     if (startDate || endDate) {
       filter.createdAt = {};
       if (startDate) filter.createdAt.$gte = new Date(startDate);
@@ -162,16 +186,16 @@ const getAllOrders = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const orders = await orderModel
-      .find(filter)
+    .find(filter)
       .populate("userId", "fullName email profileImage")
       .populate("items.productId", "productName brand images")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const totalOrders = await orderModel.countDocuments(filter);
-
-    res.status(200).json({
+      const totalOrders = await orderModel.countDocuments(filter);
+      
+      res.status(200).json({
       success: true,
       message: "Orders fetched successfully",
       data: orders,
@@ -201,13 +225,13 @@ const getOrderById = async (req, res) => {
         message: "Invalid order ID",
       });
     }
-
+    
     const order = await orderModel
       .findById(id)
       .populate("userId", "fullName email profileImage")
       .populate("items.productId", "productName brand images category");
 
-    if (!order) {
+      if (!order) {
       return res.status(404).json({
         success: false,
         message: "Order not found",
@@ -253,7 +277,7 @@ const getUserOrders = async (req, res) => {
       .limit(parseInt(limit));
 
     const totalOrders = await orderModel.countDocuments(filter);
-
+    
     res.status(200).json({
       success: true,
       message: "User orders fetched successfully",
@@ -278,7 +302,7 @@ const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.query;
     const { orderStatus, notes } = req.body;
-
+    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -328,7 +352,7 @@ const updateOrderStatus = async (req, res) => {
       .findByIdAndUpdate(id, updateData, { new: true })
       .populate("userId", "fullName email")
       .populate("items.productId", "productName brand");
-
+      
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -354,7 +378,7 @@ const updatePaymentStatus = async (req, res) => {
   try {
     const { id } = req.query;
     const { paymentStatus, transactionId } = req.body;
-
+    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -373,11 +397,11 @@ const updatePaymentStatus = async (req, res) => {
 
     const updateData = { paymentStatus };
     if (transactionId) updateData.transactionId = transactionId;
-
+    
     const order = await orderModel
-      .findByIdAndUpdate(id, updateData, { new: true })
-      .populate("userId", "fullName email");
-
+    .findByIdAndUpdate(id, updateData, { new: true })
+    .populate("userId", "fullName email");
+    
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -403,7 +427,7 @@ const updateTracking = async (req, res) => {
   try {
     const { id } = req.query;
     const { trackingNumber, shippingCarrier, estimatedDeliveryDate } = req.body;
-
+    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -416,7 +440,7 @@ const updateTracking = async (req, res) => {
     if (shippingCarrier) updateData.shippingCarrier = shippingCarrier;
     if (estimatedDeliveryDate)
       updateData.estimatedDeliveryDate = new Date(estimatedDeliveryDate);
-
+    
     const order = await orderModel.findByIdAndUpdate(id, updateData, {
       new: true,
     });
@@ -446,7 +470,7 @@ const cancelOrder = async (req, res) => {
   try {
     const { id } = req.query;
     const { cancellationReason } = req.body;
-
+    
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
@@ -495,7 +519,7 @@ const cancelOrder = async (req, res) => {
     });
 
     await order.save();
-
+    
     res.status(200).json({
       success: true,
       message: "Order cancelled successfully",
@@ -546,7 +570,7 @@ const getOrderStatistics = async (req, res) => {
       ...filter,
       orderStatus: "Cancelled",
     });
-
+    
     // Calculate total revenue from delivered orders
     const revenueData = await orderModel.aggregate([
       {
@@ -564,9 +588,10 @@ const getOrderStatistics = async (req, res) => {
       },
     ]);
 
-    const totalRevenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
+    const totalRevenue =
+      revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
 
-    res.status(200).json({
+      res.status(200).json({
       success: true,
       message: "Order statistics fetched successfully",
       data: {
@@ -599,3 +624,132 @@ module.exports = {
   cancelOrder,
   getOrderStatistics,
 };
+
+
+
+
+// // Create Order
+// const createOrder = async (req, res) => {
+//   try {
+//     const {
+//       userId,
+//       items,
+//       shippingAddress,
+//       paymentMethod,
+//       couponCode,
+//       notes,
+//       discount,
+//     } = req.body;
+
+//     // Validate user
+//     const user = await userModel.findById(userId);
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found",
+//       });
+//     }
+
+//     // Validate products and calculate totals
+//     let calculatedSubtotal = 0;
+//     const orderItems = [];
+
+//     for (let item of items) {
+//       const product = await productModel.findById(item.productId);
+//       if (!product) {
+//         return res.status(404).json({
+//           success: false,
+//           message: `Product not found: ${item.productId}`,
+//         });
+//       }
+
+//       let itemPrice = item.price;
+
+//       // Check stock if variationId is provided
+//       if (item.variationId) {
+//         const variation = product.variations.id(item.variationId);
+//         if (!variation) {
+//           return res.status(404).json({
+//             success: false,
+//             message: `Variation not found for ${product.productName}`,
+//           });
+//         }
+//         if (variation.stock < item.quantity) {
+//           return res.status(400).json({
+//             success: false,
+//             message: `Insufficient stock for ${product.productName}`,
+//           });
+//         }
+//         itemPrice = variation.price;
+//       }
+
+//       calculatedSubtotal += itemPrice * item.quantity;
+
+//       orderItems.push({
+//         productId: item.productId,
+//         variationId: item.variationId || null,
+//         quantity: item.quantity,
+//         price: itemPrice,
+//       });
+//     }
+
+//     // Calculate total amount
+//     const taxPercent = 2;
+//     const taxAmount = (calculatedSubtotal * taxPercent) / 100;
+//     const shippingFee = 50;
+//     const discountPercent = discount || 0;
+//     const discountAmount = (calculatedSubtotal * discountPercent) / 100;
+//     const totalAmount = calculatedSubtotal + taxAmount + shippingFee - discountAmount;
+
+//     // Create order
+//     const order = await orderModel.create({
+//       userId,
+//       items: orderItems,
+//       shippingAddress,
+//       paymentMethod,
+//       subtotal: calculatedSubtotal,
+//       tax: taxPercent,
+//       shippingFee: shippingFee,
+//       discount: discountPercent,
+//       couponCode,
+//       totalAmount: totalAmount,
+//       notes,
+//       statusHistory: [
+//         {
+//           status: "Pending",
+//           updatedAt: new Date(),
+//           notes: "Order created",
+//         },
+//       ],
+//     });
+
+//     // Update product stock and sold count
+//     for (let item of items) {
+//       const product = await productModel.findById(item.productId);
+//       if (item.variationId) {
+//         const variation = product.variations.id(item.variationId);
+//         if (variation) {
+//           variation.stock -= item.quantity;
+//         }
+//       }
+//       product.sold += item.quantity;
+//       await product.save();
+//     }
+
+//     const populatedOrder = await orderModel
+//       .findById(order._id)
+//       .populate("userId", "-password")
+//       .populate("items.productId");
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Order created successfully",
+//       data: populatedOrder,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// };
